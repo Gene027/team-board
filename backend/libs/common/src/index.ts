@@ -6,3 +6,7 @@ export * from './auth/interfaces/authenticated-request.interface';
 export * from './auth/interfaces/authenticated-user.interface';
 export * from './auth/interfaces/jwt-payload.interface';
 export * from './database/database.module';
+export * from './dto/pagination-query.dto';
+export * from './enums/task-priority.enum';
+export * from './enums/task-status.enum';
+export * from './interfaces/paginated-response.interface';
