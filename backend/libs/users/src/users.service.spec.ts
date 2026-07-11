@@ -7,8 +7,10 @@ describe('UsersService', () => {
   let service: UsersService;
   const userModel = {
     create: jest.fn(),
+    find: jest.fn(),
     findOne: jest.fn(),
     findById: jest.fn(),
+    countDocuments: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -59,5 +61,69 @@ describe('UsersService', () => {
     });
     expect(select).toHaveBeenCalledWith('+passwordHash');
     expect(exec).toHaveBeenCalled();
+  });
+
+  it('lists paginated users', async () => {
+    const user = {
+      _id: { toString: () => '66b3fcb8f152aa994acba101' },
+      name: 'Ada Lovelace',
+      email: 'ada@teamboard.dev',
+    };
+    userModel.find.mockReturnValue({
+      sort: jest.fn().mockReturnValue({
+        skip: jest.fn().mockReturnValue({
+          limit: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue([user]),
+          }),
+        }),
+      }),
+    });
+    userModel.countDocuments.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(1),
+    });
+
+    await expect(service.findAll({})).resolves.toEqual({
+      data: [
+        {
+          id: '66b3fcb8f152aa994acba101',
+          name: 'Ada Lovelace',
+          email: 'ada@teamboard.dev',
+        },
+      ],
+      meta: {
+        page: 1,
+        limit: 20,
+        total: 1,
+        totalPages: 1,
+      },
+    });
+    expect(userModel.find).toHaveBeenCalledWith({});
+  });
+
+  it('filters users by ids when provided', async () => {
+    userModel.find.mockReturnValue({
+      sort: jest.fn().mockReturnValue({
+        skip: jest.fn().mockReturnValue({
+          limit: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue([]),
+          }),
+        }),
+      }),
+    });
+    userModel.countDocuments.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(0),
+    });
+
+    await service.findAll({
+      userIds: ['66b3fcb8f152aa994acba101'],
+    });
+
+    const findCalls = userModel.find.mock.calls as Array<[{
+      _id: { $in: Array<{ toString: () => string }> };
+    }]>;
+    const [filter] = findCalls[0];
+    expect(filter._id.$in.map((id) => id.toString())).toEqual([
+      '66b3fcb8f152aa994acba101',
+    ]);
   });
 });

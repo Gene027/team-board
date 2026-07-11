@@ -16,15 +16,11 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import {
-  AuthenticatedUser,
-  CurrentUser,
-  JwtAuthGuard,
-  PaginationQueryDto,
-} from '@app/common';
+import { AuthenticatedUser, CurrentUser, JwtAuthGuard } from '@app/common';
 import { AddTaskCommentDto } from './dto/add-task-comment.dto';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -53,19 +49,21 @@ export class TasksController {
 
   @Get()
   @ApiOperation({ summary: 'List tasks in a project' })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
   @ApiOkResponse({ description: 'Tasks returned' })
   @ApiForbiddenResponse({ description: 'Current user is not a project member' })
   @ApiNotFoundResponse({ description: 'Project not found' })
   findAll(
     @CurrentUser() currentUser: AuthenticatedUser,
     @Param('projectId') projectId: string,
-    @Query() paginationQuery: PaginationQueryDto,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.tasksService.findAllForProject(
-      projectId,
-      currentUser.id,
-      paginationQuery,
-    );
+    return this.tasksService.findAllForProject(projectId, currentUser.id, {
+      page,
+      limit,
+    });
   }
 
   @Get(':taskId')

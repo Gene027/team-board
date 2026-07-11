@@ -17,6 +17,7 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -24,7 +25,6 @@ import {
   AuthenticatedUser,
   CurrentUser,
   JwtAuthGuard,
-  PaginationQueryDto,
 } from '@app/common';
 import { AddProjectMemberDto } from './dto/add-project-member.dto';
 import { CreateProjectDto } from './dto/create-project.dto';
@@ -51,12 +51,34 @@ export class ProjectsController {
 
   @Get()
   @ApiOperation({ summary: 'List projects for the current user' })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
   @ApiOkResponse({ description: 'Projects returned' })
   findAll(
     @CurrentUser() currentUser: AuthenticatedUser,
-    @Query() paginationQuery: PaginationQueryDto,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.projectsService.findAllForUser(currentUser.id, paginationQuery);
+    return this.projectsService.findAllForUser(currentUser.id, { page, limit });
+  }
+
+  @Get(':projectId/members')
+  @ApiOperation({ summary: 'List members in a project' })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
+  @ApiOkResponse({ description: 'Project members returned' })
+  @ApiForbiddenResponse({ description: 'Current user is not a project member' })
+  @ApiNotFoundResponse({ description: 'Project not found' })
+  findMembers(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('projectId') projectId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.projectsService.findMembersForProject(projectId, currentUser.id, {
+      page,
+      limit,
+    });
   }
 
   @Get(':projectId')

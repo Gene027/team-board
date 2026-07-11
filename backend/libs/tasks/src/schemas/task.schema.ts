@@ -1,18 +1,18 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 import { TaskPriority, TaskStatus } from '@app/common';
 
 export type TaskDocument = HydratedDocument<Task>;
 
 @Schema({ _id: true, id: true })
 export class TaskComment {
-  @Prop({ required: true, trim: true })
+  @Prop({ type: String, required: true, trim: true })
   body: string;
 
-  @Prop({ required: true })
-  authorId: string;
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  authorId: Types.ObjectId;
 
-  @Prop({ required: true, default: Date.now })
+  @Prop({ type: Date, required: true, default: Date.now })
   createdAt: Date;
 }
 
@@ -25,19 +25,31 @@ const TaskCommentSchema = SchemaFactory.createForClass(TaskComment);
     versionKey: false,
     transform: (_doc, ret: Record<string, unknown>) => {
       ret.id = ret._id?.toString();
+      ret.projectId = ret.projectId?.toString();
+      ret.assigneeId = ret.assigneeId?.toString() ?? null;
+      ret.createdById = ret.createdById?.toString();
+      ret.comments = Array.isArray(ret.comments)
+        ? ret.comments.map((comment: Record<string, unknown>) => ({
+            ...comment,
+            id: comment._id?.toString(),
+            authorId: comment.authorId?.toString(),
+            _id: undefined,
+          }))
+        : ret.comments;
       delete ret._id;
       return ret;
     },
   },
 })
 export class Task {
-  @Prop({ required: true, trim: true })
+  @Prop({ type: String, required: true, trim: true })
   title: string;
 
-  @Prop({ trim: true, default: '' })
+  @Prop({ type: String, trim: true, default: '' })
   description: string;
 
   @Prop({
+    type: String,
     enum: Object.values(TaskStatus),
     default: TaskStatus.Todo,
     required: true,
@@ -45,20 +57,21 @@ export class Task {
   status: TaskStatus;
 
   @Prop({
+    type: String,
     enum: Object.values(TaskPriority),
     default: TaskPriority.Medium,
     required: true,
   })
   priority: TaskPriority;
 
-  @Prop({ required: true, index: true })
-  projectId: string;
+  @Prop({ type: Types.ObjectId, ref: 'Project', required: true, index: true })
+  projectId: Types.ObjectId;
 
-  @Prop({ type: String, default: null })
-  assigneeId?: string | null;
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+  assigneeId?: Types.ObjectId | null;
 
-  @Prop({ required: true })
-  createdById: string;
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  createdById: Types.ObjectId;
 
   @Prop({ type: [TaskCommentSchema], default: [] })
   comments: TaskComment[];

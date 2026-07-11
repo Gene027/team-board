@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
 export type ProjectDocument = HydratedDocument<Project>;
 
@@ -10,6 +10,10 @@ export type ProjectDocument = HydratedDocument<Project>;
     versionKey: false,
     transform: (_doc, ret: Record<string, unknown>) => {
       ret.id = ret._id?.toString();
+      ret.ownerId = ret.ownerId?.toString();
+      ret.memberIds = Array.isArray(ret.memberIds)
+        ? (ret.memberIds as unknown[]).map((memberId) => String(memberId))
+        : ret.memberIds;
       delete ret._id;
       return ret;
     },
@@ -22,11 +26,11 @@ export class Project {
   @Prop({ trim: true, default: '' })
   description: string;
 
-  @Prop({ required: true, index: true })
-  ownerId: string;
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
+  ownerId: Types.ObjectId;
 
-  @Prop({ type: [String], required: true, index: true })
-  memberIds: string[];
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], required: true, index: true })
+  memberIds: Types.ObjectId[];
 }
 
 export const ProjectSchema = SchemaFactory.createForClass(Project);

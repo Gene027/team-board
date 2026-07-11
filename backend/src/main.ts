@@ -1,6 +1,7 @@
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule } from '@nestjs/swagger';
+import * as morgan from 'morgan';
 import { AppModule } from './app.module';
 import { swaggerConfig } from './config/swagger.config';
 
@@ -11,6 +12,11 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
   app.enableCors();
+  app.use(
+    morgan(':method :url :status :response-time ms - :res[content-length]', {
+      skip: (request) => !request.url?.startsWith('/api'),
+    }),
+  );
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
