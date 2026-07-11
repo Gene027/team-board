@@ -20,14 +20,8 @@ export class AuthService {
 
   async signup(signupDto: SignupDto): Promise<AuthResponse> {
     const email = this.normalizeEmail(signupDto.email);
-    const existingUser = await this.usersService.findByEmail(email);
-
-    if (existingUser) {
-      throw new ConflictException('Email is already registered');
-    }
-
     const passwordHash = await bcrypt.hash(signupDto.password, 10);
-    const user = await this.usersService.createUser(
+    const user = await this.createUserOrThrowConflict(
       signupDto.name.trim(),
       email,
       passwordHash,
@@ -70,5 +64,30 @@ export class AuthService {
 
   private normalizeEmail(email: string): string {
     return email.trim().toLowerCase();
+  }
+
+  private async createUserOrThrowConflict(
+    name: string,
+    email: string,
+    passwordHash: string,
+  ): Promise<UserProfile> {
+    try {
+      return await this.usersService.createUser(name, email, passwordHash);
+    } catch (error) {
+      if (this.isDuplicateKeyError(error)) {
+        throw new ConflictException('Email is already registered');
+      }
+
+      throw error;
+    }
+  }
+
+  private isDuplicateKeyError(error: unknown): boolean {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 11000
+    );
   }
 }

@@ -28,7 +28,6 @@ describe('AuthService', () => {
   });
 
   it('signs up a new user with a hashed password and token', async () => {
-    usersService.findByEmail.mockResolvedValue(null);
     usersService.createUser.mockResolvedValue({
       id: 'user-1',
       name: 'Ada Lovelace',
@@ -43,7 +42,7 @@ describe('AuthService', () => {
 
     const createdPasswordHash = usersService.createUser.mock.calls[0][2];
 
-    expect(usersService.findByEmail).toHaveBeenCalledWith('ada@teamboard.dev');
+    expect(usersService.findByEmail).not.toHaveBeenCalled();
     expect(usersService.createUser).toHaveBeenCalledWith(
       'Ada Lovelace',
       'ada@teamboard.dev',
@@ -68,12 +67,7 @@ describe('AuthService', () => {
   });
 
   it('rejects duplicate signup emails', async () => {
-    usersService.findByEmail.mockResolvedValue({
-      _id: { toString: () => 'user-1' },
-      name: 'Ada Lovelace',
-      email: 'ada@teamboard.dev',
-      passwordHash: 'hash',
-    } as never);
+    usersService.createUser.mockRejectedValue({ code: 11000 });
 
     await expect(
       service.signup({
@@ -82,7 +76,7 @@ describe('AuthService', () => {
         password: 'password123',
       }),
     ).rejects.toBeInstanceOf(ConflictException);
-    expect(usersService.createUser).not.toHaveBeenCalled();
+    expect(usersService.findByEmail).not.toHaveBeenCalled();
   });
 
   it('logs in a user with valid credentials', async () => {

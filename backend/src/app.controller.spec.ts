@@ -14,9 +14,15 @@ describe('AppController', () => {
     appController = app.get<AppController>(AppController);
   });
 
-  describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+  describe('health', () => {
+    it('should return a health check response', () => {
+      const response = appController.getHealth();
+
+      expect(response).toMatchObject({
+        status: 'ok',
+        service: 'teamboard-api',
+      });
+      expect(new Date(response.timestamp).toString()).not.toBe('Invalid Date');
     });
   });
 });
