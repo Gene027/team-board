@@ -9,6 +9,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { PaginatedResponse } from '@app/common';
 import { UserProfile, UsersService } from '@app/users';
+import { Task, TaskDocument } from '../../tasks/src/schemas/task.schema';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import {
@@ -44,6 +45,8 @@ export class ProjectsService {
   constructor(
     @InjectModel(Project.name)
     private readonly projectModel: Model<ProjectDocument>,
+    @InjectModel(Task.name)
+    private readonly taskModel: Model<TaskDocument>,
     private readonly usersService: UsersService,
   ) {}
 
@@ -63,11 +66,20 @@ export class ProjectsService {
 
   async findAllForUser(
     userId: string,
-    paginationQuery: { page?: number | string; limit?: number | string },
+    paginationQuery: { page?: number | string; limit?: number | string; search?: string },
   ): Promise<PaginatedResponse<ProjectListItem>> {
     const { page, limit } = this.normalizePagination(paginationQuery);
     const skip = (page - 1) * limit;
-    const filter = { memberIds: this.toObjectId(userId) };
+    const filter: {
+      memberIds: Types.ObjectId;
+      name?: { $regex: string; $options: string };
+    } = { memberIds: this.toObjectId(userId) };
+    const search = paginationQuery.search?.trim();
+
+    if (search) {
+      filter.name = { $regex: this.escapeRegex(search), $options: 'i' };
+    }
+
     const [projects, total] = await Promise.all([
       this.projectModel
         .find(filter)
@@ -138,12 +150,11 @@ export class ProjectsService {
       throw new NotFoundException('User not found');
     }
 
-    if (!this.hasMember(project, memberId)) {
-      project.memberIds.push(this.toObjectId(memberId));
-      await project.save();
-    }
-
-    return project.toJSON();
+    await project
+      .updateOne({ $addToSet: { memberIds: this.toObjectId(memberId) } })
+      .exec();
+    const updatedProject = await this.findProjectOrThrow(projectId);
+    return updatedProject.toJSON();
   }
 
   async removeMember(
@@ -160,6 +171,15 @@ export class ProjectsService {
 
     project.memberIds = project.memberIds.filter((id) => !this.idsEqual(id, memberId));
     const savedProject = await project.save();
+    await this.taskModel
+      .updateMany(
+        {
+          projectId: this.toObjectId(projectId),
+          assigneeId: this.toObjectId(memberId),
+        },
+        { $set: { assigneeId: null } },
+      )
+      .exec();
     return savedProject.toJSON();
   }
 
@@ -239,6 +259,10 @@ export class ProjectsService {
       page: Number.isInteger(page) && page > 0 ? page : 1,
       limit: Number.isInteger(limit) && limit > 0 ? Math.min(limit, 100) : 20,
     };
+  }
+
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   private toListItem(project: ProjectDocument): ProjectListItem {

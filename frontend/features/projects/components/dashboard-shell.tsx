@@ -11,7 +11,6 @@ import {
   FiPlus,
   FiSettings,
   FiUsers,
-  FiX,
 } from "react-icons/fi";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -169,7 +168,7 @@ export function DashboardShell({
                 variant="ghost"
                 onClick={logout}
               >
-                <FiX className="size-5" />
+                <FiLogOut className="size-5" />
               </Button>
             </div>
           </div>

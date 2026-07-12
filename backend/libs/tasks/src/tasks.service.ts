@@ -72,19 +72,34 @@ export class TasksService {
   async findAllForProject(
     projectId: string,
     currentUserId: string,
-    paginationQuery: { page?: number | string; limit?: number | string },
+    paginationQuery: {
+      page?: number | string;
+      limit?: number | string;
+      search?: string;
+      assigneeId?: string;
+    },
   ): Promise<PaginatedResponse<TaskListItem>> {
     await this.projectsService.ensureProjectMember(projectId, currentUserId);
 
     const { page, limit } = this.normalizePagination(paginationQuery);
     const skip = (page - 1) * limit;
-    const filter = { projectId: this.toObjectId(projectId) };
+    const filter: {
+      projectId: Types.ObjectId;
+      assigneeId?: Types.ObjectId;
+    } = { projectId: this.toObjectId(projectId) };
+
+    if (paginationQuery.assigneeId) {
+      filter.assigneeId = this.toObjectId(paginationQuery.assigneeId);
+    }
+
+    const searchStage = this.buildSearchStage(paginationQuery.search);
     const pipeline: PipelineStage[] = [
       { $match: filter },
+      ...this.assigneeLookupPipeline(),
+      ...searchStage,
       { $sort: { createdAt: -1 } },
       { $skip: skip },
       { $limit: limit },
-      ...this.assigneeLookupPipeline(),
       {
         $project: {
           _id: 0,
@@ -100,9 +115,18 @@ export class TasksService {
         },
       },
     ];
+    const countPipeline: PipelineStage[] = [
+      { $match: filter },
+      ...this.assigneeLookupPipeline(),
+      ...searchStage,
+      { $count: 'total' },
+    ];
     const [data, total] = await Promise.all([
       this.taskModel.aggregate<TaskListItem>(pipeline).exec(),
-      this.taskModel.countDocuments(filter).exec(),
+      this.taskModel
+        .aggregate<{ total: number }>(countPipeline)
+        .exec()
+        .then((result) => result[0]?.total ?? 0),
     ]);
 
     return {
@@ -336,6 +360,28 @@ export class TasksService {
         },
       },
     };
+  }
+
+  private buildSearchStage(search?: string): PipelineStage[] {
+    const normalizedSearch = search?.trim();
+
+    if (!normalizedSearch) {
+      return [];
+    }
+
+    const regex = this.escapeRegex(normalizedSearch);
+
+    return [
+      {
+        $match: {
+          title: { $regex: regex, $options: 'i' },
+        },
+      },
+    ];
+  }
+
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   private normalizePagination(paginationQuery: {

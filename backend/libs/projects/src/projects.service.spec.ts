@@ -2,6 +2,11 @@ import { ForbiddenException } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 
 describe('ProjectsService', () => {
+  type ProjectSearchFilter = {
+    memberIds: { toString: () => string };
+    name?: { $regex: string; $options: string };
+  };
+
   let service: ProjectsService;
   const projectId = '66b3fcb8f152aa994acba001';
   const ownerId = '66b3fcb8f152aa994acba101';
@@ -105,6 +110,43 @@ describe('ProjectsService', () => {
       },
     ]);
     expect(response.data[0]).not.toHaveProperty('memberIds');
+  });
+
+  it('filters listed projects by name search only', async () => {
+    const project = {
+      toJSON: () => ({
+        id: 'project-1',
+        name: 'Website Redesign',
+        description: 'Mobile app discovery',
+        ownerId,
+        memberIds: [ownerId, memberId],
+      }),
+    };
+    projectModel.find.mockReturnValue({
+      sort: jest.fn().mockReturnValue({
+        skip: jest.fn().mockReturnValue({
+          limit: jest.fn().mockReturnValue({
+            exec: jest.fn().mockResolvedValue([project]),
+          }),
+        }),
+      }),
+    });
+    projectModel.countDocuments.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(1),
+    });
+
+    await service.findAllForUser(ownerId, { search: 'web.*site' });
+
+    const [findFilter] = (projectModel.find as jest.Mock<unknown, [ProjectSearchFilter]>)
+      .mock.calls[0];
+    const [countFilter] = (
+      projectModel.countDocuments as jest.Mock<unknown, [ProjectSearchFilter]>
+    ).mock.calls[0];
+
+    expect(findFilter.memberIds.toString()).toBe(ownerId);
+    expect(findFilter.name).toEqual({ $regex: 'web\\.\\*site', $options: 'i' });
+    expect(countFilter.memberIds.toString()).toBe(ownerId);
+    expect(countFilter.name).toEqual({ $regex: 'web\\.\\*site', $options: 'i' });
   });
 
   it('returns project detail with expanded members', async () => {

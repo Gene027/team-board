@@ -70,7 +70,7 @@ describe('TasksService', () => {
           $lookup: expect.objectContaining({
             from: 'users',
             localField: 'assigneeId',
-          }),
+          }) as Record<string, unknown>,
         }),
       ]),
     );
@@ -146,19 +146,19 @@ describe('TasksService', () => {
           $lookup: expect.objectContaining({
             from: 'users',
             localField: 'assigneeId',
-          }),
+          }) as Record<string, unknown>,
         }),
         expect.objectContaining({
           $lookup: expect.objectContaining({
             from: 'users',
             localField: 'createdById',
-          }),
+          }) as Record<string, unknown>,
         }),
         expect.objectContaining({
           $lookup: expect.objectContaining({
             from: 'users',
             localField: 'comments.authorId',
-          }),
+          }) as Record<string, unknown>,
         }),
       ]),
     );

@@ -14,32 +14,20 @@ import {
   useProjects,
 } from "@/features/projects/hooks/use-projects";
 import { useAuth } from "@/hooks/use-auth";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 export function ProjectDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const debouncedSearchQuery = useDebouncedValue(searchQuery);
   const { user } = useAuth();
-  const projectsQuery = useProjects();
+  const projectsQuery = useProjects(debouncedSearchQuery);
   const createProjectMutation = useCreateProject();
 
   const projects = useMemo(
     () => projectsQuery.data?.data ?? [],
     [projectsQuery.data?.data],
   );
-  const filteredProjects = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-
-    if (!normalizedQuery) {
-      return projects;
-    }
-
-    return projects.filter((project) =>
-      [project.name, project.description]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedQuery),
-    );
-  }, [projects, searchQuery]);
 
   const ownedCount = projects.filter((project) => project.ownerId === user?.id).length;
 
@@ -70,12 +58,12 @@ export function ProjectDashboard() {
                 </p>
               </div>
               <Button
-                className="w-full md:w-auto"
+                className="w-full whitespace-nowrap md:w-auto md:min-w-40 md:shrink-0"
                 type="button"
                 onClick={() => setIsCreateModalOpen(true)}
               >
-                <FiPlus className="size-5" />
-                Create project
+                <FiPlus className="size-5 shrink-0" />
+                <span>Create project</span>
               </Button>
             </div>
           </div>
@@ -92,7 +80,7 @@ export function ProjectDashboard() {
             <TextInput
               aria-label="Search projects"
               label="Search"
-              placeholder="Search by name or description"
+              placeholder="Search by name"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
             />
@@ -124,6 +112,11 @@ export function ProjectDashboard() {
             title="Projects did not load"
             variant="error"
           />
+        ) : projects.length === 0 && debouncedSearchQuery.trim() ? (
+          <StatusMessage
+            description="Try a different search term or clear the search field to see every project."
+            title="No matching projects"
+          />
         ) : projects.length === 0 ? (
           <StatusMessage
             action={
@@ -136,14 +129,9 @@ export function ProjectDashboard() {
             icon={FiTrendingUp}
             title="No projects yet"
           />
-        ) : filteredProjects.length === 0 ? (
-          <StatusMessage
-            description="Try a different search term or clear the search field to see every project."
-            title="No matching projects"
-          />
         ) : (
           <div className="grid animate-in gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {filteredProjects.map((project) => (
+            {projects.map((project) => (
               <ProjectCard
                 isOwner={project.ownerId === user?.id}
                 key={project.id}

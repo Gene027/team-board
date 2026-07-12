@@ -28,6 +28,7 @@ import {
 } from '@app/common';
 import { AddProjectMemberDto } from './dto/add-project-member.dto';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { ListProjectsQueryDto } from './dto/list-projects-query.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectsService } from './projects.service';
 
@@ -53,13 +54,18 @@ export class ProjectsController {
   @ApiOperation({ summary: 'List projects for the current user' })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 20 })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Search projects by name.',
+    example: 'Website',
+  })
   @ApiOkResponse({ description: 'Projects returned' })
   findAll(
     @CurrentUser() currentUser: AuthenticatedUser,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query() query: ListProjectsQueryDto,
   ) {
-    return this.projectsService.findAllForUser(currentUser.id, { page, limit });
+    return this.projectsService.findAllForUser(currentUser.id, query);
   }
 
   @Get(':projectId/members')

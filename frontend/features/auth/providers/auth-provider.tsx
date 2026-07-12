@@ -28,6 +28,11 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const queryClient = useQueryClient();
+  const hasHydrated = useSyncExternalStore(
+    subscribeToHydration,
+    () => true,
+    () => false,
+  );
   const rawSession = useSyncExternalStore(
     subscribeToSession,
     tokenService.getRawSession,
@@ -57,14 +62,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       user: session?.user ?? null,
       accessToken: session?.accessToken ?? null,
       isAuthenticated: Boolean(session?.accessToken),
-      isHydrating: false,
+      isHydrating: !hasHydrated,
       setSession,
       logout,
     }),
-    [logout, session, setSession],
+    [hasHydrated, logout, session, setSession],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+function subscribeToHydration() {
+  return () => undefined;
 }
 
 function subscribeToSession(callback: () => void) {

@@ -4,13 +4,13 @@ import { projectsService } from "@/services/projects.service";
 
 export const projectQueryKeys = {
   all: ["projects"] as const,
-  list: () => [...projectQueryKeys.all, "list"] as const,
+  list: (search = "") => [...projectQueryKeys.all, "list", search] as const,
 };
 
-export function useProjects() {
+export function useProjects(search = "") {
   return useQuery({
-    queryKey: projectQueryKeys.list(),
-    queryFn: () => projectsService.getProjects(1, 20),
+    queryKey: projectQueryKeys.list(search),
+    queryFn: () => projectsService.getProjects(1, 20, search),
   });
 }
 

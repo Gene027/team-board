@@ -23,6 +23,7 @@ import {
 import { AuthenticatedUser, CurrentUser, JwtAuthGuard } from '@app/common';
 import { AddTaskCommentDto } from './dto/add-task-comment.dto';
 import { CreateTaskDto } from './dto/create-task.dto';
+import { ListTasksQueryDto } from './dto/list-tasks-query.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { TasksService } from './tasks.service';
 
@@ -51,19 +52,27 @@ export class TasksController {
   @ApiOperation({ summary: 'List tasks in a project' })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 20 })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Search tasks by title.',
+    example: 'dashboard',
+  })
+  @ApiQuery({
+    name: 'assigneeId',
+    required: false,
+    description: 'Filter tasks by assignee id.',
+    example: '66b3fcb8f152aa994acba123',
+  })
   @ApiOkResponse({ description: 'Tasks returned' })
   @ApiForbiddenResponse({ description: 'Current user is not a project member' })
   @ApiNotFoundResponse({ description: 'Project not found' })
   findAll(
     @CurrentUser() currentUser: AuthenticatedUser,
     @Param('projectId') projectId: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query() query: ListTasksQueryDto,
   ) {
-    return this.tasksService.findAllForProject(projectId, currentUser.id, {
-      page,
-      limit,
-    });
+    return this.tasksService.findAllForProject(projectId, currentUser.id, query);
   }
 
   @Get(':taskId')

@@ -12,6 +12,7 @@ interface ModalProps {
   onClose: () => void;
   children: React.ReactNode;
   className?: string;
+  bodyClassName?: string;
 }
 
 export function Modal({
@@ -21,6 +22,7 @@ export function Modal({
   onClose,
   children,
   className,
+  bodyClassName,
 }: ModalProps) {
   useEffect(() => {
     if (!isOpen) {
@@ -51,12 +53,12 @@ export function Modal({
       />
       <section
         className={cn(
-          "relative w-full max-w-lg animate-in rounded-xl border border-slate-200 bg-white p-5 shadow-2xl shadow-slate-950/20 sm:p-6",
+          "relative flex max-h-[calc(100vh-2rem)] w-full max-w-lg animate-in flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-2xl shadow-slate-950/20 sm:p-6",
           className,
         )}
       >
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
+        <div className="mb-5 flex shrink-0 items-start justify-between gap-4">
+          <div className="min-w-0">
             <h2 className="text-lg font-bold text-slate-950">{title}</h2>
             {description ? (
               <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
@@ -72,7 +74,7 @@ export function Modal({
             <FiX className="size-5" />
           </Button>
         </div>
-        {children}
+        <div className={cn("min-h-0", bodyClassName)}>{children}</div>
       </section>
     </div>
   );
