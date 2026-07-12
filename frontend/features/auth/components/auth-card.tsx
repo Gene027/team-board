@@ -2,22 +2,32 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { FiArrowRight, FiCheckCircle, FiLock, FiMail, FiUser } from "react-icons/fi";
+import { useForm, useWatch } from "react-hook-form";
+import {
+  FiArrowRight,
+  FiCheckCircle,
+  FiEye,
+  FiEyeOff,
+  FiMail,
+  FiUser,
+} from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import { TextInput } from "@/components/ui/input";
+import { ROUTES } from "@/constants/routes";
 import { AuthView } from "@/enums/auth-view.enum";
 import {
   loginSchema,
+  passwordRequirements,
   signupSchema,
   type LoginFormValues,
   type SignupFormValues,
 } from "@/features/auth/schemas/auth.schema";
-import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { getApiErrorMessage } from "@/services/api-client";
 import { authService } from "@/services/auth.service";
+import { tokenService } from "@/services/token.service";
 
 const highlights = [
   "Plan projects with clean ownership",
@@ -25,10 +35,35 @@ const highlights = [
   "Built for fast, focused team execution",
 ];
 
+const getPasswordChecks = (password: string) => [
+  {
+    label: passwordRequirements[0],
+    isMet: password.length >= 8,
+  },
+  {
+    label: passwordRequirements[1],
+    isMet: /[A-Z]/.test(password),
+  },
+  {
+    label: passwordRequirements[2],
+    isMet: /[a-z]/.test(password),
+  },
+  {
+    label: passwordRequirements[3],
+    isMet: /[0-9]/.test(password),
+  },
+  {
+    label: passwordRequirements[4],
+    isMet: /[^A-Za-z0-9]/.test(password),
+  },
+];
+
 export function AuthCard() {
   const [view, setView] = useState<AuthView>(AuthView.Login);
   const [serverError, setServerError] = useState<string | null>(null);
-  const { setSession } = useAuth();
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
+  const router = useRouter();
   const isLogin = view === AuthView.Login;
 
   const loginForm = useForm<LoginFormValues>({
@@ -38,17 +73,27 @@ export function AuthCard() {
 
   const signupForm = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { name: "", email: "", password: "" },
+    defaultValues: { name: "", email: "", password: "", confirmPassword: "" },
   });
+  const signupPassword = useWatch({
+    control: signupForm.control,
+    name: "password",
+  });
+  const passwordChecks = getPasswordChecks(signupPassword);
 
   const authMutation = useMutation({
-    mutationFn: (values: LoginFormValues | SignupFormValues) =>
-      isLogin
-        ? authService.login(values)
-        : authService.signup(values as SignupFormValues),
+    mutationFn: (values: LoginFormValues | SignupFormValues) => {
+      if (isLogin) {
+        return authService.login(values);
+      }
+
+      const { email, name, password } = values as SignupFormValues;
+      return authService.signup({ email, name, password });
+    },
     onSuccess: (session) => {
       setServerError(null);
-      setSession(session);
+      tokenService.setToken(session.accessToken);
+      router.replace(ROUTES.dashboard);
     },
     onError: (error) => {
       setServerError(getApiErrorMessage(error, "Authentication failed."));
@@ -58,6 +103,8 @@ export function AuthCard() {
   const switchView = (nextView: AuthView) => {
     setView(nextView);
     setServerError(null);
+    setIsPasswordVisible(false);
+    setIsConfirmPasswordVisible(false);
     authMutation.reset();
   };
 
@@ -120,30 +167,32 @@ export function AuthCard() {
             </div>
 
             <div className="mb-6 grid grid-cols-2 rounded-lg bg-slate-100 p-1">
-              <button
+              <Button
                 className={cn(
-                  "rounded-md px-3 py-2 text-sm font-bold transition",
+                  "h-auto rounded-md px-3 py-2 text-sm font-bold",
                   isLogin
                     ? "bg-white text-slate-950 shadow-sm"
                     : "text-slate-500 hover:text-slate-900",
                 )}
                 type="button"
+                variant="ghost"
                 onClick={() => switchView(AuthView.Login)}
               >
                 Login
-              </button>
-              <button
+              </Button>
+              <Button
                 className={cn(
-                  "rounded-md px-3 py-2 text-sm font-bold transition",
+                  "h-auto rounded-md px-3 py-2 text-sm font-bold",
                   !isLogin
                     ? "bg-white text-slate-950 shadow-sm"
                     : "text-slate-500 hover:text-slate-900",
                 )}
                 type="button"
+                variant="ghost"
                 onClick={() => switchView(AuthView.Signup)}
               >
                 Sign up
-              </button>
+              </Button>
             </div>
 
             {serverError ? (
@@ -199,15 +248,64 @@ export function AuthCard() {
                       ? loginForm.formState.errors.password?.message
                       : signupForm.formState.errors.password?.message
                   }
+                  className="pr-11"
                   label="Password"
                   placeholder="Minimum 8 characters"
-                  type="password"
+                  type={isPasswordVisible ? "text" : "password"}
                   {...(isLogin
                     ? loginForm.register("password")
                     : signupForm.register("password"))}
                 />
-                <FiLock className="pointer-events-none absolute right-3 top-10 size-5 text-slate-400" />
+                <PasswordVisibilityButton
+                  isVisible={isPasswordVisible}
+                  onClick={() => setIsPasswordVisible((isVisible) => !isVisible)}
+                />
               </div>
+
+              {!isLogin ? (
+                <>
+                  <div
+                    aria-label="Password requirements"
+                    className="grid gap-2 rounded-lg bg-slate-50 px-3 py-3 text-xs font-medium text-slate-500 sm:grid-cols-2"
+                  >
+                    {passwordChecks.map((check) => (
+                      <div
+                        className={cn(
+                          "flex items-center gap-2",
+                          check.isMet ? "text-emerald-700" : "text-slate-500",
+                        )}
+                        key={check.label}
+                      >
+                        <FiCheckCircle
+                          className={cn(
+                            "size-4 shrink-0",
+                            check.isMet ? "text-emerald-500" : "text-slate-300",
+                          )}
+                        />
+                        <span>{check.label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="relative">
+                    <TextInput
+                      autoComplete="new-password"
+                      className="pr-11"
+                      error={signupForm.formState.errors.confirmPassword?.message}
+                      label="Confirm password"
+                      placeholder="Re-enter your password"
+                      type={isConfirmPasswordVisible ? "text" : "password"}
+                      {...signupForm.register("confirmPassword")}
+                    />
+                    <PasswordVisibilityButton
+                      isVisible={isConfirmPasswordVisible}
+                      onClick={() =>
+                        setIsConfirmPasswordVisible((isVisible) => !isVisible)
+                      }
+                    />
+                  </div>
+                </>
+              ) : null}
 
               <Button
                 className="mt-2 w-full"
@@ -223,5 +321,29 @@ export function AuthCard() {
         </div>
       </div>
     </section>
+  );
+}
+
+interface PasswordVisibilityButtonProps {
+  isVisible: boolean;
+  onClick: () => void;
+}
+
+function PasswordVisibilityButton({
+  isVisible,
+  onClick,
+}: PasswordVisibilityButtonProps) {
+  const Icon = isVisible ? FiEyeOff : FiEye;
+
+  return (
+    <Button
+      aria-label={isVisible ? "Hide password" : "Show password"}
+      className="absolute right-1.5 top-[34px] size-8 rounded-md p-0 text-slate-500 hover:text-slate-950"
+      type="button"
+      variant="ghost"
+      onClick={onClick}
+    >
+      <Icon className="size-4" />
+    </Button>
   );
 }

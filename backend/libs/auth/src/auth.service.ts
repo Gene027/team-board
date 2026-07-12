@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -48,6 +49,16 @@ export class AuthService {
     }
 
     return this.buildAuthResponse(this.usersService.toProfile(user));
+  }
+
+  async getProfile(userId: string): Promise<UserProfile> {
+    const user = await this.usersService.findById(userId);
+
+    if (!user) {
+      throw new NotFoundException('User profile not found');
+    }
+
+    return user;
   }
 
   private buildAuthResponse(user: UserProfile): AuthResponse {

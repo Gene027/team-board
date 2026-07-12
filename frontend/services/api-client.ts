@@ -1,7 +1,11 @@
 import axios, { AxiosError } from "axios";
 import { API_BASE_URL } from "@/constants/api";
+import { ROUTES } from "@/constants/routes";
+import {
+  clearStoredSession,
+  getStoredAccessToken,
+} from "@/features/auth/utils/auth-session";
 import type { ApiErrorResponse } from "@/interfaces/api.interface";
-import { tokenService } from "@/services/token.service";
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -12,7 +16,7 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = tokenService.getAccessToken();
+  const token = getStoredAccessToken();
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -24,8 +28,13 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiErrorResponse>) => {
-    if (error.response?.status === 401 && typeof window !== "undefined") {
-      window.dispatchEvent(new Event("teamboard:unauthorized"));
+    if (
+      error.response?.status === 401 &&
+      error.config?.headers?.Authorization &&
+      typeof window !== "undefined"
+    ) {
+      clearStoredSession();
+      window.location.assign(ROUTES.login);
     }
 
     return Promise.reject(error);

@@ -17,7 +17,6 @@ import { TextInput } from "@/components/ui/input";
 import { StatusMessage } from "@/components/ui/status-message";
 import { ROUTES } from "@/constants/routes";
 import { TaskStatus } from "@/enums/task-status.enum";
-import { AuthCard } from "@/features/auth/components/auth-card";
 import { AddMemberModal } from "@/features/tasks/components/add-member-modal";
 import { CreateTaskModal } from "@/features/tasks/components/create-task-modal";
 import { ProjectSettingsModal } from "@/features/tasks/components/project-settings-modal";
@@ -69,9 +68,9 @@ export function ProjectWorkspaceScreen({ projectId }: ProjectWorkspaceScreenProp
   const [isProjectSettingsOpen, setIsProjectSettingsOpen] = useState(false);
   const [selectedAssigneeId, setSelectedAssigneeId] = useState("");
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 350);
-  const { isAuthenticated, isHydrating, user } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
-  const activeProjectId = isAuthenticated && !isHydrating ? projectId : "";
+  const activeProjectId = projectId;
 
   const projectQuery = useProjectDetail(activeProjectId);
   const membersQuery = useProjectMembers(activeProjectId);
@@ -112,23 +111,6 @@ export function ProjectWorkspaceScreen({ projectId }: ProjectWorkspaceScreenProp
     );
   }, [tasks]);
 
-  if (isHydrating) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-100">
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-          <span className="size-5 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />
-          <span className="text-sm font-semibold text-slate-700">
-            Loading workspace
-          </span>
-        </div>
-      </main>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <AuthCard />;
-  }
-
   const openCreateTask = (status = TaskStatus.Todo) => {
     setCreateTaskStatus(status);
     setIsCreateTaskOpen(true);
@@ -157,7 +139,7 @@ export function ProjectWorkspaceScreen({ projectId }: ProjectWorkspaceScreenProp
         <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           <Link
             className="inline-flex items-center gap-2 text-sm font-black text-slate-600 transition hover:text-slate-950"
-            href={ROUTES.home}
+            href={ROUTES.dashboard}
           >
             <FiArrowLeft className="size-4" />
             Projects
@@ -387,7 +369,7 @@ export function ProjectWorkspaceScreen({ projectId }: ProjectWorkspaceScreenProp
         onClose={() => setIsProjectSettingsOpen(false)}
         onDeleteProject={() => {
           deleteProjectMutation.mutate(undefined, {
-            onSuccess: () => router.push(ROUTES.home),
+            onSuccess: () => router.push(ROUTES.dashboard),
           });
         }}
         onRemoveMember={(userId, onSuccess) => {

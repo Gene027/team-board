@@ -1,14 +1,34 @@
 "use client";
 
-import { useContext } from "react";
-import { AuthContext } from "@/features/auth/providers/auth-provider";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useCallback } from "react";
+import { ROUTES } from "@/constants/routes";
+import {
+  authQueryKeys,
+  clearStoredSession,
+} from "@/features/auth/utils/auth-session";
+import { authService } from "@/services/auth.service";
 
 export function useAuth() {
-  const context = useContext(AuthContext);
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  const profileQuery = useQuery({
+    queryKey: authQueryKeys.profile,
+    queryFn: authService.getProfile,
+    retry: false,
+  });
 
-  if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
+  const logout = useCallback(() => {
+    clearStoredSession();
+    queryClient.clear();
+    router.replace(ROUTES.login);
+  }, [queryClient, router]);
 
-  return context;
+  return {
+    user: profileQuery.data ?? null,
+    isAuthenticated: Boolean(profileQuery.data),
+    profileQuery,
+    logout,
+  };
 }

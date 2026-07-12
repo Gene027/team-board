@@ -1,3 +1,3 @@
 export const STORAGE_KEYS = {
-  authSession: "teamboard.auth.session",
+  accessToken: "teamboard.auth.accessToken",
 };

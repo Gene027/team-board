@@ -1,4 +1,8 @@
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '@app/users';
@@ -7,7 +11,7 @@ import { AuthService } from './auth.service';
 describe('AuthService', () => {
   let service: AuthService;
   let usersService: jest.Mocked<
-    Pick<UsersService, 'createUser' | 'findByEmail' | 'toProfile'>
+    Pick<UsersService, 'createUser' | 'findByEmail' | 'findById' | 'toProfile'>
   >;
   let jwtService: jest.Mocked<Pick<JwtService, 'sign'>>;
 
@@ -15,6 +19,7 @@ describe('AuthService', () => {
     usersService = {
       createUser: jest.fn(),
       findByEmail: jest.fn(),
+      findById: jest.fn(),
       toProfile: jest.fn(),
     };
     jwtService = {
@@ -114,5 +119,28 @@ describe('AuthService', () => {
         password: 'password123',
       }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('returns the authenticated user profile', async () => {
+    usersService.findById.mockResolvedValue({
+      id: 'user-1',
+      name: 'Ada Lovelace',
+      email: 'ada@teamboard.dev',
+    });
+
+    await expect(service.getProfile('user-1')).resolves.toEqual({
+      id: 'user-1',
+      name: 'Ada Lovelace',
+      email: 'ada@teamboard.dev',
+    });
+    expect(usersService.findById).toHaveBeenCalledWith('user-1');
+  });
+
+  it('rejects missing authenticated user profiles', async () => {
+    usersService.findById.mockResolvedValue(null);
+
+    await expect(service.getProfile('missing-user')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });

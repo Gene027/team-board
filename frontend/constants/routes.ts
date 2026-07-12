@@ -1,4 +1,5 @@
 export const ROUTES = {
-  home: "/",
+  dashboard: "/projects",
+  login: "/",
   project: (projectId: string) => `/projects/${projectId}`,
 };
