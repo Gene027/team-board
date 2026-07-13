@@ -4,6 +4,11 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { FiCheck, FiChevronDown, FiChevronUp } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 
+const MENU_GAP = 8;
+const MENU_VIEWPORT_PADDING = 16;
+const MENU_MAX_HEIGHT = 256;
+const MENU_MIN_HEIGHT = 112;
+
 export interface SelectOption {
   label: string;
   value: string;
@@ -30,12 +35,56 @@ export function Select({
   onChange,
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [menuPlacement, setMenuPlacement] = useState<"bottom" | "top">("bottom");
+  const [menuMaxHeight, setMenuMaxHeight] = useState(MENU_MAX_HEIGHT);
   const selectId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const selectedOption = useMemo(
     () => options.find((option) => option.value === value),
     [options, value],
   );
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const updateMenuLayout = () => {
+      const triggerElement = triggerRef.current;
+
+      if (!triggerElement) {
+        return;
+      }
+
+      const triggerRect = triggerElement.getBoundingClientRect();
+      const spaceBelow =
+        window.innerHeight -
+        triggerRect.bottom -
+        MENU_GAP -
+        MENU_VIEWPORT_PADDING;
+      const spaceAbove = triggerRect.top - MENU_GAP - MENU_VIEWPORT_PADDING;
+      const shouldOpenUp = spaceBelow < MENU_MAX_HEIGHT && spaceAbove > spaceBelow;
+      const availableSpace = shouldOpenUp ? spaceAbove : spaceBelow;
+
+      setMenuPlacement(shouldOpenUp ? "top" : "bottom");
+      setMenuMaxHeight(
+        Math.max(
+          MENU_MIN_HEIGHT,
+          Math.min(MENU_MAX_HEIGHT, Math.floor(availableSpace)),
+        ),
+      );
+    };
+
+    updateMenuLayout();
+    window.addEventListener("resize", updateMenuLayout);
+    window.addEventListener("scroll", updateMenuLayout, true);
+
+    return () => {
+      window.removeEventListener("resize", updateMenuLayout);
+      window.removeEventListener("scroll", updateMenuLayout, true);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -75,6 +124,7 @@ export function Select({
           isOpen && "border-slate-400 ring-4 ring-slate-100",
         )}
         disabled={disabled}
+        ref={triggerRef}
         type="button"
         onClick={() => setIsOpen((currentValue) => !currentValue)}
       >
@@ -102,9 +152,15 @@ export function Select({
 
       {isOpen ? (
         <div
-          className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-[70] max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl shadow-slate-950/10"
+          className={cn(
+            "absolute left-0 right-0 z-[70] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl shadow-slate-950/10",
+            menuPlacement === "top"
+              ? "bottom-[calc(100%+0.5rem)]"
+              : "top-[calc(100%+0.5rem)]",
+          )}
           id={selectId}
           role="listbox"
+          style={{ maxHeight: menuMaxHeight }}
         >
           {options.map((option) => {
             const isSelected = option.value === value;

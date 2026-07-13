@@ -1,28 +1,24 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FiPlus, FiRefreshCw, FiSearch, FiTrendingUp } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import { TextInput } from "@/components/ui/input";
 import { StatusMessage } from "@/components/ui/status-message";
-import { CreateProjectModal } from "@/features/projects/components/create-project-modal";
-import { DashboardShell } from "@/features/projects/components/dashboard-shell";
+import { useDashboardChrome } from "@/features/projects/components/dashboard-shell";
 import { ProjectCard } from "@/features/projects/components/project-card";
 import { ProjectSkeletonGrid } from "@/features/projects/components/project-skeleton-grid";
-import {
-  useCreateProject,
-  useProjects,
-} from "@/features/projects/hooks/use-projects";
+import { useProjects } from "@/features/projects/hooks/use-projects";
 import { useAuth } from "@/hooks/use-auth";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { getApiErrorMessage } from "@/services/api-client";
 
 export function ProjectDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const debouncedSearchQuery = useDebouncedValue(searchQuery);
   const { user } = useAuth();
+  const { openCreateProject, setRouteTitle } = useDashboardChrome();
   const projectsQuery = useProjects(debouncedSearchQuery);
-  const createProjectMutation = useCreateProject();
 
   const projects = useMemo(
     () => projectsQuery.data?.data ?? [],
@@ -31,25 +27,21 @@ export function ProjectDashboard() {
 
   const ownedCount = projects.filter((project) => project.ownerId === user?.id).length;
 
-  const handleCreateProject = (values: { name: string; description?: string }) => {
-    createProjectMutation.mutate(values, {
-      onSuccess: () => {
-        setIsCreateModalOpen(false);
-      },
-    });
-  };
+  useEffect(() => {
+    setRouteTitle("Projects");
+  }, [setRouteTitle]);
 
   return (
-    <DashboardShell onCreateProject={() => setIsCreateModalOpen(true)}>
-      <section className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <div className="mb-6 grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="animate-in rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+    <>
+      <section className="min-w-0 px-3 py-5 min-[360px]:px-4 sm:px-6 lg:px-8 lg:py-8">
+        <div className="mb-5 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0 animate-in rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
             <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-bold uppercase tracking-[0.16em] text-cyan-700">
                   Project selection
                 </p>
-                <h1 className="mt-2 text-3xl font-black tracking-normal text-slate-950 sm:text-4xl">
+                <h1 className="mt-2 text-2xl font-black tracking-normal text-slate-950 min-[360px]:text-3xl sm:text-4xl">
                   Choose a workspace
                 </h1>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
@@ -60,7 +52,7 @@ export function ProjectDashboard() {
               <Button
                 className="w-full whitespace-nowrap md:w-auto md:min-w-40 md:shrink-0"
                 type="button"
-                onClick={() => setIsCreateModalOpen(true)}
+                onClick={openCreateProject}
               >
                 <FiPlus className="size-5 shrink-0" />
                 <span>Create project</span>
@@ -68,15 +60,15 @@ export function ProjectDashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="grid min-w-0 grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm min-[360px]:grid-cols-3 min-[360px]:gap-3 min-[360px]:p-4">
             <Metric label="Projects" value={projects.length} />
             <Metric label="Owned" value={ownedCount} />
             <Metric label="Pages" value={projectsQuery.data?.meta.totalPages ?? 0} />
           </div>
         </div>
 
-        <div className="mb-5 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm md:flex-row md:items-center md:justify-between">
-          <div className="relative md:w-96">
+        <div className="mb-5 flex min-w-0 flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm md:flex-row md:items-center md:justify-between">
+          <div className="relative min-w-0 md:w-96">
             <TextInput
               aria-label="Search projects"
               label="Search"
@@ -86,8 +78,9 @@ export function ProjectDashboard() {
             />
             <FiSearch className="pointer-events-none absolute right-3 top-10 size-5 text-slate-400" />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <Button
+              className="w-full sm:w-auto"
               isLoading={projectsQuery.isFetching}
               type="button"
               variant="secondary"
@@ -108,7 +101,10 @@ export function ProjectDashboard() {
                 Try again
               </Button>
             }
-            description="We could not load your projects from the API. Check your connection and try again."
+            description={getApiErrorMessage(
+              projectsQuery.error,
+              "We could not load your projects from the API. Check your connection and try again.",
+            )}
             title="Projects did not load"
             variant="error"
           />
@@ -120,7 +116,7 @@ export function ProjectDashboard() {
         ) : projects.length === 0 ? (
           <StatusMessage
             action={
-              <Button type="button" onClick={() => setIsCreateModalOpen(true)}>
+              <Button type="button" onClick={openCreateProject}>
                 <FiPlus className="size-5" />
                 Create your first project
               </Button>
@@ -130,7 +126,7 @@ export function ProjectDashboard() {
             title="No projects yet"
           />
         ) : (
-          <div className="grid animate-in gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid min-w-0 animate-in gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {projects.map((project) => (
               <ProjectCard
                 isOwner={project.ownerId === user?.id}
@@ -141,15 +137,7 @@ export function ProjectDashboard() {
           </div>
         )}
       </section>
-
-      <CreateProjectModal
-        error={createProjectMutation.error}
-        isOpen={isCreateModalOpen}
-        isPending={createProjectMutation.isPending}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSubmit={handleCreateProject}
-      />
-    </DashboardShell>
+    </>
   );
 }
 
@@ -160,9 +148,9 @@ interface MetricProps {
 
 function Metric({ label, value }: MetricProps) {
   return (
-    <div className="rounded-lg bg-slate-100 px-3 py-4 text-center">
+    <div className="min-w-0 rounded-lg bg-slate-100 px-3 py-4 text-center">
       <p className="text-2xl font-black text-slate-950">{value}</p>
-      <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+      <p className="mt-1 truncate text-xs font-bold uppercase tracking-[0.08em] text-slate-500 min-[360px]:tracking-[0.12em]">
         {label}
       </p>
     </div>

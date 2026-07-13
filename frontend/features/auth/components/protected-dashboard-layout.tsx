@@ -4,7 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { ROUTES } from "@/constants/routes";
-import { authQueryKeys, getStoredAccessToken } from "@/features/auth/utils/auth-session";
+import { useStoredAccessToken } from "@/features/auth/hooks/use-stored-access-token";
+import { authQueryKeys } from "@/features/auth/utils/auth-session";
 import { authService } from "@/services/auth.service";
 
 interface ProtectedDashboardLayoutProps {
@@ -15,7 +16,7 @@ export function ProtectedDashboardLayout({
   children,
 }: ProtectedDashboardLayoutProps) {
   const router = useRouter();
-  const token = getStoredAccessToken();
+  const token = useStoredAccessToken();
 
   const profileQuery = useQuery({
     queryKey: authQueryKeys.profile,

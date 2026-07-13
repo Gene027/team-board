@@ -33,7 +33,7 @@ export function TaskColumn({
   return (
     <section
       className={cn(
-        "flex min-h-[560px] flex-col rounded-xl border border-slate-200 bg-slate-50 p-3 transition",
+        "flex min-h-[560px] min-w-0 flex-col rounded-xl border border-slate-200 bg-slate-50 p-3 transition",
         isDropTarget && "border-slate-300 bg-slate-100",
       )}
       onDragOver={(event) => {
@@ -49,12 +49,12 @@ export function TaskColumn({
         }
       }}
     >
-      <div className="mb-3 flex items-center justify-between gap-3 px-1">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-black text-slate-800">
+      <div className="mb-3 flex min-w-0 items-center justify-between gap-3 px-1">
+        <div className="flex min-w-0 items-center gap-2">
+          <h2 className="truncate text-sm font-black text-slate-800">
             {TASK_STATUS_LABELS[status]}
           </h2>
-          <span className="rounded-full bg-white px-2 py-0.5 text-xs font-black text-slate-500">
+          <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs font-black text-slate-500">
             {tasks.length}
           </span>
         </div>

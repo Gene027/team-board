@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FiArrowLeft,
   FiPlus,
@@ -17,6 +17,7 @@ import { TextInput } from "@/components/ui/input";
 import { StatusMessage } from "@/components/ui/status-message";
 import { ROUTES } from "@/constants/routes";
 import { TaskStatus } from "@/enums/task-status.enum";
+import { useDashboardChrome } from "@/features/projects/components/dashboard-shell";
 import { AddMemberModal } from "@/features/tasks/components/add-member-modal";
 import { CreateTaskModal } from "@/features/tasks/components/create-task-modal";
 import { ProjectSettingsModal } from "@/features/tasks/components/project-settings-modal";
@@ -44,6 +45,7 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useUsers } from "@/hooks/use-users";
 import type { TaskListItem } from "@/interfaces/task.interface";
 import { getInitials } from "@/lib/utils";
+import { getApiErrorMessage } from "@/services/api-client";
 
 interface ProjectWorkspaceScreenProps {
   projectId: string;
@@ -69,6 +71,7 @@ export function ProjectWorkspaceScreen({ projectId }: ProjectWorkspaceScreenProp
   const [selectedAssigneeId, setSelectedAssigneeId] = useState("");
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 350);
   const { user } = useAuth();
+  const { setRouteTitle } = useDashboardChrome();
   const router = useRouter();
   const activeProjectId = projectId;
 
@@ -95,6 +98,10 @@ export function ProjectWorkspaceScreen({ projectId }: ProjectWorkspaceScreenProp
     () => membersQuery.data?.data ?? [],
     [membersQuery.data?.data],
   );
+
+  useEffect(() => {
+    setRouteTitle(projectQuery.data?.name ?? "Project workspace");
+  }, [projectQuery.data?.name, setRouteTitle]);
 
   const tasksByStatus = useMemo(() => {
     return boardStatuses.reduce<Record<TaskStatus, TaskListItem[]>>(
@@ -134,71 +141,65 @@ export function ProjectWorkspaceScreen({ projectId }: ProjectWorkspaceScreenProp
   };
 
   return (
-    <main className="min-h-screen bg-slate-100 text-slate-950">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-          <Link
-            className="inline-flex items-center gap-2 text-sm font-black text-slate-600 transition hover:text-slate-950"
-            href={ROUTES.dashboard}
-          >
-            <FiArrowLeft className="size-4" />
-            Projects
-          </Link>
-          <div className="flex items-center gap-2">
-            <Button
-              className="hidden sm:inline-flex"
-              type="button"
-              variant="secondary"
-              onClick={() => setIsProjectSettingsOpen(true)}
-            >
-              <FiSettings className="size-5" />
-              Settings
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setIsAddMemberOpen(true)}
-            >
-              <FiUserPlus className="size-5" />
-              Add member
-            </Button>
-            <Button
-              isLoading={
-                projectQuery.isFetching ||
-                membersQuery.isFetching ||
-                (tasksQuery.isFetching && !searchQuery)
-              }
-              type="button"
-              variant="secondary"
-              onClick={refreshWorkspace}
-            >
-              <FiRefreshCw className="size-5" />
-              Refresh
-            </Button>
-            <Button type="button" onClick={() => openCreateTask()}>
-              <FiPlus className="size-5" />
-              New task
-            </Button>
-          </div>
-        </div>
-      </header>
+    <>
+      <section className="mx-auto min-w-0 max-w-[1600px] px-3 py-5 min-[360px]:px-4 sm:px-6 lg:px-8">
+        <Link
+          className="mb-3 inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 transition duration-200 hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700"
+          href={ROUTES.dashboard}
+        >
+          <FiArrowLeft className="size-5 shrink-0" />
+          <span>Projects</span>
+        </Link>
 
-      <section className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mb-6 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="mb-5 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
             <p className="text-sm font-bold uppercase tracking-[0.16em] text-cyan-700">
               Project workspace
             </p>
-            <h1 className="mt-2 text-3xl font-black tracking-normal text-slate-950 sm:text-4xl">
+            <h1 className="mt-2 text-2xl font-black tracking-normal text-slate-950 min-[360px]:text-3xl sm:text-4xl">
               {projectQuery.data?.name ?? "Project board"}
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-500">
               {projectQuery.data?.description ||
                 "Plan, assign, move, and discuss tasks from one focused board."}
             </p>
+            <div className="mt-5 grid min-w-0 grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:flex sm:flex-wrap">
+              <Button
+                className="w-full sm:w-auto"
+                type="button"
+                variant="secondary"
+                onClick={() => setIsAddMemberOpen(true)}
+              >
+                <FiUserPlus className="size-5 shrink-0" />
+                <span>Add member</span>
+              </Button>
+              <Button
+                className="w-full sm:w-auto"
+                isLoading={
+                  projectQuery.isFetching ||
+                  membersQuery.isFetching ||
+                  (tasksQuery.isFetching && !searchQuery)
+                }
+                type="button"
+                variant="secondary"
+                onClick={refreshWorkspace}
+              >
+                <FiRefreshCw className="size-5 shrink-0" />
+                <span>Refresh</span>
+              </Button>
+              <Button
+                className="col-span-2 w-full sm:col-span-1 sm:w-auto"
+                type="button"
+                variant="secondary"
+                onClick={() => setIsProjectSettingsOpen(true)}
+              >
+                <FiSettings className="size-5 shrink-0" />
+                <span>Settings</span>
+              </Button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="grid min-w-0 grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm min-[360px]:grid-cols-3 min-[360px]:gap-3 min-[360px]:p-4">
             <Metric label="Tasks" value={tasks.length} />
             <Metric label="Members" value={members.length} />
             <Metric
@@ -208,8 +209,8 @@ export function ProjectWorkspaceScreen({ projectId }: ProjectWorkspaceScreenProp
           </div>
         </div>
 
-        <div className="mb-5 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm lg:flex-row lg:items-end lg:justify-between">
-          <div className="relative lg:w-96">
+        <div className="mb-5 flex min-w-0 flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm lg:flex-row lg:items-end lg:justify-between">
+          <div className="relative min-w-0 lg:w-96">
             <TextInput
               aria-label="Search tasks"
               label="Search tasks"
@@ -219,20 +220,20 @@ export function ProjectWorkspaceScreen({ projectId }: ProjectWorkspaceScreenProp
             />
             <FiSearch className="pointer-events-none absolute right-3 top-10 size-5 text-slate-400" />
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm font-bold text-slate-500 lg:justify-end">
+          <div className="flex min-w-0 flex-col gap-3 text-sm font-bold text-slate-500 min-[360px]:flex-row min-[360px]:flex-wrap min-[360px]:items-center min-[360px]:justify-between lg:justify-end">
             {tasksQuery.isFetching && searchQuery ? (
               <span className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-xs font-black text-slate-500">
                 <span className="size-3 animate-spin rounded-full border-2 border-slate-500 border-t-transparent" />
                 Searching
               </span>
             ) : null}
-            <div className="flex items-center gap-2">
-              <FiUsers className="size-5" />
+            <div className="flex min-w-0 items-center gap-2">
+              <FiUsers className="size-5 shrink-0" />
               {members.length > 0 ? (
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
                   {selectedAssigneeId ? (
                     <Button
-                      className="h-9 px-3 text-xs"
+                      className="h-9 shrink-0 px-3 text-xs"
                       type="button"
                       variant="secondary"
                       onClick={() => setSelectedAssigneeId("")}
@@ -240,7 +241,7 @@ export function ProjectWorkspaceScreen({ projectId }: ProjectWorkspaceScreenProp
                       Clear
                     </Button>
                   ) : null}
-                  <div className="flex -space-x-2">
+                  <div className="flex min-w-0 flex-1 -space-x-2 overflow-x-auto pb-1">
                   {members.slice(0, 6).map((member) => (
                     <button
                       aria-label={`Filter tasks assigned to ${member.name}`}
@@ -278,10 +279,24 @@ export function ProjectWorkspaceScreen({ projectId }: ProjectWorkspaceScreenProp
           </div>
         </div>
 
+        <div className="mb-5 flex justify-end">
+          <Button
+            className="w-full sm:w-auto"
+            type="button"
+            onClick={() => openCreateTask()}
+          >
+            <FiPlus className="size-5 shrink-0" />
+            <span>New task</span>
+          </Button>
+        </div>
+
         {projectQuery.isError || tasksQuery.isError ? (
           <StatusMessage
             action={<Button onClick={refreshWorkspace}>Try again</Button>}
-            description="The project or task board could not be loaded from the API."
+            description={getApiErrorMessage(
+              projectQuery.error ?? tasksQuery.error,
+              "The project or task board could not be loaded from the API.",
+            )}
             title="Workspace did not load"
             variant="error"
           />
@@ -304,7 +319,7 @@ export function ProjectWorkspaceScreen({ projectId }: ProjectWorkspaceScreenProp
             title="No matching tasks"
           />
         ) : (
-          <div className="grid gap-4 xl:grid-cols-4">
+          <div className="grid min-w-0 gap-4 xl:grid-cols-4">
             {boardStatuses.map((status) => (
               <TaskColumn
                 draggedTaskId={draggedTaskId}
@@ -419,7 +434,7 @@ export function ProjectWorkspaceScreen({ projectId }: ProjectWorkspaceScreenProp
           updateTaskMutation.mutate({ taskId: selectedTaskId, payload });
         }}
       />
-    </main>
+    </>
   );
 }
 
@@ -430,9 +445,9 @@ interface MetricProps {
 
 function Metric({ label, value }: MetricProps) {
   return (
-    <div className="rounded-lg bg-slate-100 px-3 py-4 text-center">
+    <div className="min-w-0 rounded-lg bg-slate-100 px-3 py-4 text-center">
       <p className="text-2xl font-black text-slate-950">{value}</p>
-      <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+      <p className="mt-1 truncate text-xs font-bold uppercase tracking-[0.08em] text-slate-500 min-[360px]:tracking-[0.12em]">
         {label}
       </p>
     </div>

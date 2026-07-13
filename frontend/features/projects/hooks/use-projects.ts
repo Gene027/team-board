@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CreateProjectPayload } from "@/interfaces/project.interface";
+import { notifyApiError, notifySuccess } from "@/lib/toast";
 import { projectsService } from "@/services/projects.service";
 
 export const projectQueryKeys = {
@@ -21,7 +22,11 @@ export function useCreateProject() {
     mutationFn: (payload: CreateProjectPayload) =>
       projectsService.createProject(payload),
     onSuccess: () => {
+      notifySuccess("Project created.");
       queryClient.invalidateQueries({ queryKey: projectQueryKeys.all });
+    },
+    onError: (error) => {
+      notifyApiError(error, "Project could not be created.");
     },
   });
 }

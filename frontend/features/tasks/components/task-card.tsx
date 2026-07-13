@@ -21,7 +21,7 @@ export function TaskCard({
 }: TaskCardProps) {
   return (
     <button
-      className="group w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg hover:shadow-slate-950/5 disabled:cursor-wait disabled:opacity-70"
+      className="group w-full min-w-0 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg hover:shadow-slate-950/5 disabled:cursor-wait disabled:opacity-70"
       draggable={!isUpdating}
       disabled={isUpdating}
       type="button"
@@ -32,9 +32,9 @@ export function TaskCard({
         onDragStart(task.id);
       }}
     >
-      <div className="mb-3 flex items-start justify-between gap-3">
+      <div className="mb-3 flex min-w-0 items-start justify-between gap-3">
         <PriorityBadge priority={task.priority} />
-        <span className="text-xs font-bold text-slate-400">
+        <span className="shrink-0 text-xs font-bold text-slate-400">
           {formatDate(task.updatedAt ?? task.createdAt)}
         </span>
       </div>
@@ -44,7 +44,7 @@ export function TaskCard({
       <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">
         {task.description || "No description yet."}
       </p>
-      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+      <div className="mt-4 flex min-w-0 items-center justify-between gap-3 border-t border-slate-100 pt-3">
         {task.assignee ? (
           <div className="flex min-w-0 items-center gap-2">
             <Avatar name={task.assignee.name} />

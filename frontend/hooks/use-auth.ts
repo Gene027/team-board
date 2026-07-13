@@ -8,6 +8,7 @@ import {
   authQueryKeys,
   clearStoredSession,
 } from "@/features/auth/utils/auth-session";
+import { notifySuccess } from "@/lib/toast";
 import { authService } from "@/services/auth.service";
 
 export function useAuth() {
@@ -22,6 +23,7 @@ export function useAuth() {
   const logout = useCallback(() => {
     clearStoredSession();
     queryClient.clear();
+    notifySuccess("Signed out.");
     router.replace(ROUTES.login);
   }, [queryClient, router]);
 

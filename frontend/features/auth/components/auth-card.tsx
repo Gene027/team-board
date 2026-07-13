@@ -25,6 +25,7 @@ import {
   type SignupFormValues,
 } from "@/features/auth/schemas/auth.schema";
 import { cn } from "@/lib/utils";
+import { notifyApiError, notifySuccess } from "@/lib/toast";
 import { getApiErrorMessage } from "@/services/api-client";
 import { authService } from "@/services/auth.service";
 import { tokenService } from "@/services/token.service";
@@ -93,10 +94,12 @@ export function AuthCard() {
     onSuccess: (session) => {
       setServerError(null);
       tokenService.setToken(session.accessToken);
+      notifySuccess(isLogin ? "Signed in." : "Account created.");
       router.replace(ROUTES.dashboard);
     },
     onError: (error) => {
       setServerError(getApiErrorMessage(error, "Authentication failed."));
+      notifyApiError(error, "Authentication failed.");
     },
   });
 

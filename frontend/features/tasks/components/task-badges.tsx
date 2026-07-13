@@ -25,7 +25,7 @@ export function PriorityBadge({ priority }: PriorityBadgeProps) {
   return (
     <span
       className={cn(
-        "rounded-full px-2 py-1 text-xs font-black",
+        "shrink-0 rounded-full px-2 py-1 text-xs font-black",
         priorityClassNames[priority],
       )}
     >
@@ -42,7 +42,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
   return (
     <span
       className={cn(
-        "rounded-full px-2 py-1 text-xs font-black",
+        "shrink-0 rounded-full px-2 py-1 text-xs font-black",
         statusClassNames[status],
       )}
     >

@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import {
   FiCalendar,
@@ -89,6 +89,13 @@ export function TaskDetailModal({
       description: member.email,
     })),
   ];
+  const sortedComments = useMemo(() => {
+    return [...(task?.comments ?? [])].sort(
+      (firstComment, secondComment) =>
+        new Date(secondComment.createdAt).getTime() -
+        new Date(firstComment.createdAt).getTime(),
+    );
+  }, [task?.comments]);
 
   useEffect(() => {
     if (task) {
@@ -169,8 +176,8 @@ export function TaskDetailModal({
                 Comments
               </div>
               <div className="scrollbar-hidden max-h-80 space-y-3 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
-                {task.comments.length > 0 ? (
-                  task.comments.map((comment) => (
+                {sortedComments.length > 0 ? (
+                  sortedComments.map((comment) => (
                     <div
                       className="rounded-xl border border-slate-200 bg-white p-4"
                       key={comment.id}

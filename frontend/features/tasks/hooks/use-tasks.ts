@@ -7,6 +7,7 @@ import type {
   TaskListItem,
   UpdateTaskPayload,
 } from "@/interfaces/task.interface";
+import { notifyApiError, notifySuccess } from "@/lib/toast";
 import { tasksService } from "@/services/tasks.service";
 
 export const taskQueryKeys = {
@@ -41,7 +42,11 @@ export function useCreateTask(projectId: string) {
     mutationFn: (payload: CreateTaskPayload) =>
       tasksService.createTask(projectId, payload),
     onSuccess: () => {
+      notifySuccess("Task created.");
       queryClient.invalidateQueries({ queryKey: taskQueryKeys.all(projectId) });
+    },
+    onError: (error) => {
+      notifyApiError(error, "Task could not be created.");
     },
   });
 }
@@ -57,6 +62,9 @@ export function useUpdateTask(projectId: string) {
       taskId: string;
       payload: UpdateTaskPayload;
     }) => tasksService.updateTask(projectId, taskId, payload),
+    onSuccess: () => {
+      notifySuccess("Task updated.");
+    },
     onMutate: async (variables) => {
       await queryClient.cancelQueries({ queryKey: taskQueryKeys.all(projectId) });
 
@@ -95,7 +103,9 @@ export function useUpdateTask(projectId: string) {
 
       return { previousTaskLists, previousTaskDetail };
     },
-    onError: (_error, variables, context) => {
+    onError: (error, variables, context) => {
+      notifyApiError(error, "Task could not be updated.");
+
       context?.previousTaskLists.forEach(([queryKey, data]) => {
         queryClient.setQueryData(queryKey, data);
       });
@@ -122,7 +132,11 @@ export function useDeleteTask(projectId: string) {
   return useMutation({
     mutationFn: (taskId: string) => tasksService.deleteTask(projectId, taskId),
     onSuccess: () => {
+      notifySuccess("Task deleted.");
       queryClient.invalidateQueries({ queryKey: taskQueryKeys.all(projectId) });
+    },
+    onError: (error) => {
+      notifyApiError(error, "Task could not be deleted.");
     },
   });
 }
@@ -134,6 +148,7 @@ export function useAddTaskComment(projectId: string, taskId?: string | null) {
     mutationFn: (payload: AddTaskCommentPayload) =>
       tasksService.addComment(projectId, taskId ?? "", payload),
     onSuccess: () => {
+      notifySuccess("Comment added.");
       queryClient.invalidateQueries({ queryKey: taskQueryKeys.all(projectId) });
 
       if (taskId) {
@@ -141,6 +156,9 @@ export function useAddTaskComment(projectId: string, taskId?: string | null) {
           queryKey: taskQueryKeys.detail(projectId, taskId),
         });
       }
+    },
+    onError: (error) => {
+      notifyApiError(error, "Comment could not be added.");
     },
   });
 }

@@ -1,6 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { usePathname } from "next/navigation";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   FiBell,
   FiBriefcase,
@@ -14,12 +23,14 @@ import {
 } from "react-icons/fi";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/constants/routes";
+import { CreateProjectModal } from "@/features/projects/components/create-project-modal";
+import { useCreateProject } from "@/features/projects/hooks/use-projects";
 import { useAuth } from "@/hooks/use-auth";
-import { cn } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 
 interface DashboardShellProps {
   children: React.ReactNode;
-  onCreateProject: () => void;
 }
 
 const navigationItems = [
@@ -29,12 +40,88 @@ const navigationItems = [
   { label: "Settings", icon: FiSettings },
 ];
 
-export function DashboardShell({
-  children,
-  onCreateProject,
-}: DashboardShellProps) {
+interface DashboardChromeContextValue {
+  openCreateProject: () => void;
+  setRouteTitle: (title: string) => void;
+}
+
+const DashboardChromeContext = createContext<DashboardChromeContextValue | null>(
+  null,
+);
+
+export function useDashboardChrome() {
+  const context = useContext(DashboardChromeContext);
+
+  if (!context) {
+    throw new Error("useDashboardChrome must be used within DashboardShell.");
+  }
+
+  return context;
+}
+
+export function DashboardShell({ children }: DashboardShellProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [routeTitleOverride, setRouteTitleOverride] = useState<{
+    pathname: string;
+    title: string;
+  } | null>(null);
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const { user, logout } = useAuth();
+  const pathname = usePathname();
+  const createProjectMutation = useCreateProject();
+  const isProjectDetailPage = pathname !== ROUTES.dashboard;
+  const fallbackRouteTitle = isProjectDetailPage ? "Project workspace" : "Projects";
+  const routeTitle =
+    routeTitleOverride?.pathname === pathname
+      ? routeTitleOverride.title
+      : fallbackRouteTitle;
+
+  const openCreateProject = useCallback(() => setIsCreateProjectOpen(true), []);
+  const updateRouteTitle = useCallback((title: string) => {
+    setRouteTitleOverride({
+      pathname,
+      title: title.trim() || fallbackRouteTitle,
+    });
+  }, [fallbackRouteTitle, pathname]);
+  const chromeContext = useMemo(
+    () => ({ openCreateProject, setRouteTitle: updateRouteTitle }),
+    [openCreateProject, updateRouteTitle],
+  );
+
+  useEffect(() => {
+    if (!isAccountMenuOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (
+        accountMenuRef.current &&
+        !accountMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsAccountMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [isAccountMenuOpen]);
+
+  const handleCreateProject = (values: { name: string; description?: string }) => {
+    createProjectMutation.mutate(values, {
+      onSuccess: () => setIsCreateProjectOpen(false),
+    });
+  };
+
+  const handleLogout = () => {
+    setIsAccountMenuOpen(false);
+    setIsMobileMenuOpen(false);
+    logout();
+  };
+
+  const userName = user?.name ?? "TeamBoard User";
+  const userEmail = user?.email ?? "";
 
   const sidebar = (
     <aside className="flex h-full flex-col bg-slate-950 text-white">
@@ -54,7 +141,7 @@ export function DashboardShell({
           type="button"
           onClick={() => {
             setIsMobileMenuOpen(false);
-            onCreateProject();
+            openCreateProject();
           }}
         >
           <FiPlus className="size-5" />
@@ -82,17 +169,17 @@ export function DashboardShell({
 
       <div className="border-t border-white/10 p-4">
         <div className="mb-4 flex items-center gap-3">
-          <Avatar name={user?.name ?? "TeamBoard User"} />
+          <Avatar name={userName} />
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold">{user?.name}</p>
-            <p className="truncate text-xs text-slate-400">{user?.email}</p>
+            <p className="truncate text-sm font-bold">{userName}</p>
+            <p className="truncate text-xs text-slate-400">{userEmail}</p>
           </div>
         </div>
         <Button
           className="w-full justify-start text-slate-300 hover:bg-white/10 hover:text-white"
           type="button"
           variant="ghost"
-          onClick={logout}
+          onClick={handleLogout}
         >
           <FiLogOut className="size-5" />
           Logout
@@ -102,7 +189,7 @@ export function DashboardShell({
   );
 
   return (
-    <main className="min-h-screen bg-slate-100 text-slate-950">
+    <main className="min-h-screen overflow-x-hidden bg-slate-100 text-slate-950">
       <div className="hidden fixed inset-y-0 left-0 w-72 lg:block">{sidebar}</div>
 
       {isMobileMenuOpen ? (
@@ -117,26 +204,26 @@ export function DashboardShell({
         </div>
       ) : null}
 
-      <div className="lg:pl-72">
+      <div className="min-w-0 lg:pl-72">
         <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
-          <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-3">
+          <div className="flex h-16 items-center justify-between gap-2 px-2 min-[360px]:px-3 sm:px-6 lg:px-8">
+            <div className="flex min-w-0 flex-1 items-center gap-2 min-[360px]:gap-3">
               <Button
                 aria-label="Open navigation"
-                className="size-10 p-0 lg:hidden"
+                className="size-10 shrink-0 p-0 lg:hidden"
                 type="button"
                 variant="secondary"
                 onClick={() => setIsMobileMenuOpen(true)}
               >
                 <FiMenu className="size-5" />
               </Button>
-              <div className="hidden items-center gap-2 text-sm font-bold text-slate-500 sm:flex">
-                <FiBriefcase className="size-5" />
-                Project dashboard
+              <div className="flex min-w-0 items-center gap-2 text-sm font-bold text-slate-600">
+                <FiBriefcase className="hidden size-5 shrink-0 sm:block" />
+                <span className="min-w-0 truncate">{routeTitle}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <Button
                 aria-label="Notifications"
                 className="size-10 p-0"
@@ -145,36 +232,62 @@ export function DashboardShell({
               >
                 <FiBell className="size-5" />
               </Button>
-              <Button
-                className="hidden sm:inline-flex"
-                type="button"
-                onClick={onCreateProject}
-              >
-                <FiPlus className="size-5" />
-                New project
-              </Button>
-              <Button
-                aria-label="Create project"
-                className="size-10 p-0 sm:hidden"
-                type="button"
-                onClick={onCreateProject}
-              >
-                <FiPlus className="size-5" />
-              </Button>
-              <Button
-                aria-label="Logout"
-                className="size-10 p-0 lg:hidden"
-                type="button"
-                variant="ghost"
-                onClick={logout}
-              >
-                <FiLogOut className="size-5" />
-              </Button>
+              <div className="relative" ref={accountMenuRef}>
+                <button
+                  aria-expanded={isAccountMenuOpen}
+                  aria-label="Open account menu"
+                  className="flex h-10 max-w-56 items-center gap-2 rounded-lg border border-slate-200 bg-white p-1.5 text-left shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950"
+                  type="button"
+                  onClick={() => setIsAccountMenuOpen((isOpen) => !isOpen)}
+                >
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-slate-950 text-xs font-black text-white">
+                    {getInitials(userName)}
+                  </span>
+                  <span className="hidden min-w-0 pr-1 md:block">
+                    <span className="block truncate text-xs font-black text-slate-950">
+                      {userName}
+                    </span>
+                    <span className="block truncate text-[11px] font-semibold leading-4 text-slate-500">
+                      {userEmail}
+                    </span>
+                  </span>
+                </button>
+                {isAccountMenuOpen ? (
+                  <div className="absolute right-0 top-12 w-64 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl shadow-slate-950/10">
+                    <div className="border-b border-slate-100 p-4">
+                      <p className="truncate text-sm font-black text-slate-950">
+                        {userName}
+                      </p>
+                      <p className="mt-1 truncate text-xs font-semibold text-slate-500">
+                        {userEmail}
+                      </p>
+                    </div>
+                    <button
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-bold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
+                      type="button"
+                      onClick={handleLogout}
+                    >
+                      <FiLogOut className="size-5" />
+                      Logout
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </header>
-        {children}
+        <DashboardChromeContext.Provider value={chromeContext}>
+          {children}
+        </DashboardChromeContext.Provider>
       </div>
+
+      <CreateProjectModal
+        error={createProjectMutation.error}
+        isOpen={isCreateProjectOpen}
+        isPending={createProjectMutation.isPending}
+        onClose={() => setIsCreateProjectOpen(false)}
+        onSubmit={handleCreateProject}
+      />
     </main>
   );
 }

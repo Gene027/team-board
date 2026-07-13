@@ -7,6 +7,9 @@ import {
 } from "@/features/auth/utils/auth-session";
 import type { ApiErrorResponse } from "@/interfaces/api.interface";
 
+export const API_TIMEOUT_MESSAGE =
+  "The backend is waking up on Render and is taking longer than usual to respond. Please try again in a moment.";
+
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -41,7 +44,42 @@ apiClient.interceptors.response.use(
   },
 );
 
+export function isApiRequestTimeoutError(error: unknown) {
+  if (!axios.isAxiosError(error)) {
+    return false;
+  }
+
+  const status = error.response?.status;
+  const responseMessage = (error.response?.data as ApiErrorResponse | undefined)
+    ?.message;
+  const messages = [
+    error.code,
+    error.message,
+    (error.response?.data as ApiErrorResponse | undefined)?.error,
+    ...(Array.isArray(responseMessage) ? responseMessage : [responseMessage]),
+  ]
+    .filter((message): message is string => typeof message === "string")
+    .map((message) => message.toLowerCase());
+
+  return (
+    error.code === "ECONNABORTED" ||
+    error.code === "ETIMEDOUT" ||
+    status === 408 ||
+    status === 504 ||
+    messages.some(
+      (message) =>
+        message.includes("timeout") ||
+        message.includes("timed out") ||
+        message.includes("network error"),
+    )
+  );
+}
+
 export function getApiErrorMessage(error: unknown, fallback: string) {
+  if (isApiRequestTimeoutError(error)) {
+    return API_TIMEOUT_MESSAGE;
+  }
+
   if (axios.isAxiosError<ApiErrorResponse>(error)) {
     const message = error.response?.data?.message;
 
